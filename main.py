@@ -260,15 +260,15 @@ def main():
         }
 
         # Save to JSON file
-        with open("veille_tech.json", "w", encoding="utf-8") as f:
-            json.dump(veille_data, f, indent=4, ensure_ascii=False, cls=DateTimeEncoder)
-        
-        logger.info("Tech watch data saved to veille_tech.json")
+        with open("veiltech.json", "w", encoding="utf-8") as f:
+            json.dump(veille_data, f, cls=DateTimeEncoder, ensure_ascii=False, indent=2)
+
+        logger.info("Data collection and processing completed successfully")
         return veille_data
-        
+
     except Exception as e:
-        logger.error(f"Critical error in main script: {str(e)}")
-        raise
+        logger.error(f"Error in main execution: {str(e)}")
+        return None
 
 if __name__ == "__main__":
     main()
