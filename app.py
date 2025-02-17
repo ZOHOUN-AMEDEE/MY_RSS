@@ -1,63 +1,52 @@
 import streamlit as st
 import json
+from datetime import datetime
+from main import process_source  # Importez les fonctions de votre script principal
 
-# Charger les données depuis le fichier JSON
-def load_data():
-    try:
-        with open("veiltech.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data
-    except Exception as e:
-        st.error(f"Erreur lors du chargement des données: {e}")
-        return None
+# Titre de l'application
+st.title("Veille Technologique")
 
-# Interface Streamlit
-st.title("📰 Veille Technologique")
-st.write("Consultez les résumés et les liens des derniers articles et posts sur différentes plateformes.")
+# Boutons pour chaque plateforme
+platforms = ["Google News", "Reddit", "Hacker News", "arXiv"]
 
-data = load_data()
-if data:
-    sources = list(data["data"].keys())
-    selected_source = st.selectbox("Choisissez une source :", sources)
-    
-    if selected_source in data["data"]:
-        if selected_source in ["google_news", "arxiv"]:
-            queries = list(data["data"][selected_source].keys())
-            selected_query = st.selectbox("Choisissez un sujet :", queries)
-            
-            if selected_query in data["data"][selected_source]:
-                st.subheader("Résumé")
-                st.write(data["data"][selected_source][selected_query]["summary"])
-                
-                st.subheader("Articles")
-                for item in data["data"][selected_source][selected_query]["content"]:
-                    st.markdown(f"**[{item['title']}]({item['url']})**")
-                    st.write(item.get("summary", "Aucun résumé disponible."))
-                    st.write("---")
-        
-        elif selected_source == "reddit":
-            subreddits = list(data["data"][selected_source].keys())
-            selected_subreddit = st.selectbox("Choisissez un subreddit :", subreddits)
-            
-            if selected_subreddit in data["data"][selected_source]:
-                st.subheader("Résumé")
-                st.write(data["data"][selected_source][selected_subreddit]["summary"])
-                
-                st.subheader("Posts")
-                for item in data["data"][selected_source][selected_subreddit]["content"]:
-                    st.markdown(f"**[{item['title']}]({item['url']})**")
-                    st.write(f"👍 {item['score']} | 💬 {item['comments']} commentaires")
-                    st.write(item.get("selftext", "Aucun contenu disponible."))
-                    st.write("---")
-        
-        elif selected_source == "hackernews":
+# Sélection de la plateforme
+selected_platform = st.selectbox("Choisissez une plateforme", platforms)
+
+# Entrée de l'utilisateur pour la requête
+query = st.text_input("Entrez votre requête", "Machine Learning")
+
+# Bouton pour lancer la recherche
+if st.button("Rechercher"):
+    st.write(f"Recherche sur {selected_platform} pour la requête : {query}")
+
+    # Mapping des noms de plateformes aux types de source
+    source_type_mapping = {
+        "Google News": "google_news",
+        "Reddit": "reddit",
+        "Hacker News": "hackernews",
+        "arXiv": "arxiv"
+    }
+
+    # Récupérer le type de source correspondant
+    source_type = source_type_mapping.get(selected_platform)
+
+    if source_type:
+        # Traiter la source
+        result = process_source(source_type, query)
+
+        if result:
+            # Afficher le résumé
             st.subheader("Résumé")
-            st.write(data["data"][selected_source]["summary"])
-            
+            st.write(result.get("summary", "Aucun résumé disponible."))
+
+            # Afficher les liens des posts
             st.subheader("Posts")
-            for item in data["data"][selected_source]["content"]:
-                st.markdown(f"**[{item['title']}]({item['url']})**")
-                st.write(f"👍 {item['score']} | 💬 {item['comments']} commentaires")
+            for item in result.get("content", []):
+                st.write(f"**Titre:** {item.get('title', '')}")
+                st.write(f"**Lien:** [{item.get('url', '')}]({item.get('url', '')})")
+                st.write(f"**Source:** {item.get('source', '')}")
                 st.write("---")
-else:
-    st.error("Impossible de charger les données.")
+        else:
+            st.error("Aucun résultat trouvé.")
+    else:
+        st.error("Plateforme non reconnue.")
