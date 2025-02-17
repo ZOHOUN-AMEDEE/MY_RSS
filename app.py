@@ -1,106 +1,57 @@
-# app.py
 import streamlit as st
-import json
-from datetime import datetime
-import main  # importing your main script
+from main import process_source  # Importez les fonctions de votre script principal
 
-def load_data():
-    try:
-        with open("veiltech.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return None
+# Titre de l'application
+st.title("Veille Technologique")
 
-def refresh_data():
-    main.main()  # Run the data collection process
-    return load_data()
+# Boutons pour chaque plateforme
+platforms = ["Google News", "Reddit", "Hacker News", "arXiv"]
 
-def render_content(content_list):
-    for item in content_list:
-        st.write("---")
-        st.markdown(f"### {item['title']}")
-        st.write(f"Source: {item['source']}")
-        if 'published' in item:
-            st.write(f"Published: {item['published']}")
-        if 'score' in item:
-            st.write(f"Score: {item['score']} | Comments: {item['comments']}")
-        if 'summary' in item:
-            st.write("Summary:", item['summary'])
-        st.markdown(f"[Read More]({item['url']})")
+# Sélection de la plateforme
+selected_platform = st.selectbox("Choisissez une plateforme", platforms)
 
-def main():
-    st.set_page_config(
-        page_title="Tech Watch Dashboard",
-        page_icon="🔍",
-        layout="wide"
-    )
+# Entrée de l'utilisateur pour la requête
+query = st.text_input("Entrez votre requête", "Machine Learning")
 
-    st.title("🔍 Tech Watch Dashboard")
-    st.markdown("Stay updated with the latest in technology across multiple platforms")
+# Bouton pour lancer la recherche
+if st.button("Rechercher"):
+    st.write(f"Recherche sur {selected_platform} pour la requête : {query}")
 
-    # Add refresh button
-    if st.button("🔄 Refresh Data"):
-        with st.spinner("Fetching fresh data..."):
-            data = refresh_data()
-            st.success("Data refreshed successfully!")
-    else:
-        data = load_data()
+    # Mapping des noms de plateformes aux types de source
+    source_type_mapping = {
+        "Google News": "google_news",
+        "Reddit": "reddit",
+        "Hacker News": "hackernews",
+        "arXiv": "arxiv"
+    }
 
-    if not data:
-        st.warning("No data available. Please click the refresh button to fetch data.")
-        return
+    # Récupérer le type de source correspondant
+    source_type = source_type_mapping.get(selected_platform)
 
-    # Display last update time
-    st.info(f"Last updated: {data['metadata']['generated_at']}")
+    if source_type:
+        # Traiter la source
+        result = process_source(source_type, query)
 
-    # Create tabs for different platforms
-    platforms = ["Google News", "Reddit", "Hacker News", "arXiv"]
-    tabs = st.tabs(platforms)
+        if result:
+            # Afficher le résumé global
+            st.subheader("Résumé global")
+            st.write(result.get("summary", "Aucun résumé disponible."))
 
-    # Google News Tab
-    with tabs[0]:
-        st.header("Google News")
-        topics = list(data['data']['google_news'].keys())
-        selected_topic = st.selectbox("Select Topic", topics, key="google_news")
-        
-        if selected_topic in data['data']['google_news']:
-            st.subheader(f"Summary for {selected_topic}")
-            st.write(data['data']['google_news'][selected_topic]['summary'])
-            st.subheader("Articles")
-            render_content(data['data']['google_news'][selected_topic]['content'])
-
-    # Reddit Tab
-    with tabs[1]:
-        st.header("Reddit")
-        subreddits = list(data['data']['reddit'].keys())
-        selected_subreddit = st.selectbox("Select Subreddit", subreddits, key="reddit")
-        
-        if selected_subreddit in data['data']['reddit']:
-            st.subheader(f"Summary for r/{selected_subreddit}")
-            st.write(data['data']['reddit'][selected_subreddit]['summary'])
+            # Afficher les posts avec un résumé individuel (si disponible)
             st.subheader("Posts")
-            render_content(data['data']['reddit'][selected_subreddit]['content'])
+            for item in result.get("content", []):
+                st.write(f"**Titre:** {item.get('title', '')}")
+                st.write(f"**Lien:** [{item.get('url', '')}]({item.get('url', '')})")
+                st.write(f"**Source:** {item.get('source', '')}")
 
-    # Hacker News Tab
-    with tabs[2]:
-        st.header("Hacker News")
-        if data['data']['hackernews']:
-            st.subheader("Summary")
-            st.write(data['data']['hackernews']['summary'])
-            st.subheader("Top Stories")
-            render_content(data['data']['hackernews']['content'])
+                # Afficher un résumé individuel si disponible
+                if "summary" in item:
+                    st.write(f"**Résumé:** {item.get('summary', '')}")
+                else:
+                    st.write("**Résumé:** Non disponible pour ce post.")
 
-    # arXiv Tab
-    with tabs[3]:
-        st.header("arXiv Papers")
-        topics = list(data['data']['arxiv'].keys())
-        selected_topic = st.selectbox("Select Topic", topics, key="arxiv")
-        
-        if selected_topic in data['data']['arxiv']:
-            st.subheader(f"Summary for {selected_topic}")
-            st.write(data['data']['arxiv'][selected_topic]['summary'])
-            st.subheader("Papers")
-            render_content(data['data']['arxiv'][selected_topic]['content'])
-
-if __name__ == "__main__":
-    main()
+                st.write("---")
+        else:
+            st.error("Aucun résultat trouvé.")
+    else:
+        st.error("Plateforme non reconnue.")
